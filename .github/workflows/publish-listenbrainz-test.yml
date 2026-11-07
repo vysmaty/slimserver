@@ -1,0 +1,31 @@
+name: Publish ListenBrainz test image
+
+on:
+  push:
+    branches: [codex/docker-listenbrainz-test]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: 69bbf50bcebf5eb41318f6748c3adc4b80aaec0b
+          persist-credentials: false
+      - name: Publish to GitHub Container Registry
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          docker buildx create --use --driver docker-container
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 \
+            --tag ghcr.io/vysmaty/lyrionmusicserver:listenbrainz-69bbf50 --push --file - . <<'DOCKERFILE'
+          FROM ghcr.io/lms-community/lyrionmusicserver@sha256:a195ce1f9bf2c24b259314ac438d1b92f9d53af87c7ffc570fad08690afef6d8
+          COPY Slim/Plugin/AudioScrobbler/API/ListenBrainz.pm /lms/Slim/Plugin/AudioScrobbler/API/ListenBrainz.pm
+          LABEL org.opencontainers.image.source="https://github.com/vysmaty/slimserver" \
+                org.opencontainers.image.revision="69bbf50bcebf5eb41318f6748c3adc4b80aaec0b"
+          DOCKERFILE
